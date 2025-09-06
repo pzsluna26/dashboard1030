@@ -3,10 +3,10 @@
 import Link from "next/link";
 
 const categories = [
-  { name: "News", href: "/news" },
-  { name: "Social", href: "/social" },
-  // { name: "중대재해처벌법", href: "/safety" },
-  // { name: "자본시장법", href: "/finance" },
+  { name: "개인정보보호법", href: "/private" },
+  { name: "아동복지법", href: "/child" },
+  { name: "중대재해처벌법", href: "/safety" },
+  { name: "자본시장법", href: "/finance" },
 ];
 
 export default function Home() {

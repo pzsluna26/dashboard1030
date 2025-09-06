@@ -1,7 +1,8 @@
+// 파란막대그래프2
+
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
 import {
   BarChart,
   Bar,
@@ -23,21 +24,10 @@ interface GraphCardProps {
 }
 
 export default function GraphCard({ title, data }: GraphCardProps) {
-  const router = useRouter();
-
-  // 데이터 변환
   const chartData = Object.entries(data).map(([date, value]) => ({
     date,
     count: value.count,
   }));
-
-  // 막대 클릭 이벤트 핸들러
-  const handleBarClick = (data: any) => {
-    if (data && data.payload && data.payload.date) {
-      const selectedDate = data.payload.date;
-      router.push(`/news/${encodeURIComponent(title)}/${selectedDate}`);
-    }
-  };
 
   return (
     <div className="bg-white p-4 rounded-lg w-full">
@@ -63,11 +53,9 @@ export default function GraphCard({ title, data }: GraphCardProps) {
               dataKey="count"
               fill={COLORS[0]}
               radius={[4, 4, 0, 0]}
-              isAnimationActive={true}
-              animationDuration={1200}
-              animationEasing="ease-in-out"
-              onClick={handleBarClick}
-              cursor="pointer" // 마우스가 올때 포인터 표시
+              isAnimationActive={true}          // 애니메이션 활성화
+              animationDuration={1500}           // 애니메이션 시간 (1.5초)
+              animationEasing="ease-in-out"     // 부드러운 easing 효과
             />
           </BarChart>
         </ResponsiveContainer>

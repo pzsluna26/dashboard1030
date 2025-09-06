@@ -30,7 +30,7 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <div className="w-full bg-white mx-auto flex flex-col justify-center items-center">
            <Nav/>
-           <main className="mt-10 w-full h-9/10 flex flex-col justify-center items-center overflow-y-auto flex-grow mb-8">
+           <main className="mt-10 w-full h-full flex flex-col justify-center items-center overflow-y-auto flex-grow mb-8">
               {children}
            </main>
            <Footer/>
