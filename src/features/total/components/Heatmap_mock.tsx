@@ -19,6 +19,36 @@ const COLS = ["개정강화", "폐지완화", "현상유지"] as const;
 type BucketKey = (typeof COLS)[number];
 
 /* =========================
+   MOCK DATA
+========================= */
+const mockLaws: LawDatum[] = [
+  {
+    name: "개인정보보호법,정보통신망법",
+    개정강화: 45,
+    폐지완화: 25,
+    현상유지: 30,
+  },
+  {
+    name: "자본시장법,특정금융정보법,전자금융거래법,전자증권법,금융소비자보호법",
+    개정강화: 60,
+    폐지완화: 20,
+    현상유지: 20,
+  },
+  {
+    name: "중대재해처벌법",
+    개정강화: 15,
+    폐지완화: 70,
+    현상유지: 15,
+  },
+  {
+    name: "아동복지법",
+    개정강화: 30,
+    폐지완화: 10,
+    현상유지: 60,
+  },
+];
+
+/* =========================
    날짜 계산 유틸
 ========================= */
 const fmtKstDate = (d: Date) =>
@@ -29,7 +59,6 @@ const getDefaultRange = () => {
   const start = new Date(end.getTime() - 13 * 24 * 60 * 60 * 1000); // 14일 포함
   return { start: fmtKstDate(start), end: fmtKstDate(end) };
 };
-
 
 const Y_AXIS_LABEL_MAP: Record<string, string> = {
   "자본시장법,특정금융정보법,전자금융거래법,전자증권법,금융소비자보호법": "금융관련법",
@@ -53,24 +82,18 @@ export default function Heatmap({
   const [laws, setLaws] = useState<LawDatum[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ start, end를 외부 props 기반으로 결정
   const { start, end } = useMemo(() => {
     if (startDate && endDate) return { start: startDate, end: endDate };
     return getDefaultRange();
   }, [startDate, endDate]);
 
-  /* =========================
-     Highcharts heatmap 모듈 로드
-  ========================== */
   useEffect(() => {
     let cancelled = false;
     (async () => {
       if (typeof window === "undefined") return;
       try {
         (window as any).Highcharts = Highcharts;
-        await import("highcharts/modules/heatmap.js").catch(async () => {
-          await import("highcharts/modules/heatmap");
-        });
+        await import("highcharts/modules/heatmap.js");
         if (!cancelled) setHcReady(true);
       } catch (e) {
         console.error("Highcharts heatmap init failed:", e);
@@ -81,9 +104,6 @@ export default function Heatmap({
     };
   }, []);
 
-  /* =========================
-     서버 데이터 패치
-  ========================== */
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -102,11 +122,11 @@ export default function Heatmap({
         if (!data || !Array.isArray(data.laws)) throw new Error("Unexpected API shape");
 
         if (!cancelled) setLaws(data.laws);
-        console.log("data", data)
       } catch (err: any) {
         if (!cancelled) {
-          console.error("❌ Heatmap fetch 실패:", err);
-          setFetchErr(err?.message || "Failed to fetch");
+          console.warn("❌ Heatmap fetch 실패, mock 데이터로 대체:", err);
+          setLaws(mockLaws); // ✅ fallback to mock data
+          // setFetchErr("서버에서 데이터를 가져올 수 없어 mock 데이터를 사용합니다.");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -118,35 +138,22 @@ export default function Heatmap({
     };
   }, [start, end]);
 
-  /* =========================
-     데이터 정규화 + 인사이트 계산
-  ========================== */
   const { rows, points, insightText } = useMemo(() => {
-    if (!laws.length)
-      return { rows: [], points: [], insightText: "데이터가 없습니다." };
-
-    const toRatioPct = (v: number) =>
-      v > 1 ? { ratio: v / 100, pct: v } : { ratio: v, pct: v * 100 };
+    if (!laws.length) return { rows: [], points: [], insightText: "데이터가 없습니다." };
 
     const rows = laws.map((d) => Y_AXIS_LABEL_MAP[d.name] || d.name);
     const points = laws.flatMap((row, y) => {
-      const reinforce = row.개정강화 ?? 0;
-      const repeal = row.폐지완화 ?? 0;
-      const oppose = row.현상유지 ?? 0;
-      const total = reinforce + repeal + oppose;
-
+      const total = COLS.reduce((acc, key) => acc + (row[key] ?? 0), 0);
       return COLS.map((key, x) => {
-        const count = row[key] ?? 0;
-        const pct = total > 0 ? (count / total) * 100 : 0;
-        return { x, y, value: pct / 100, pct }; // value는 0~1, pct는 0~100
+        const val = row[key] ?? 0;
+        const pct = total > 0 ? (val / total) * 100 : 0;
+        return { x, y, value: pct / 100, pct };
       });
     });
 
-
-    type Cell = { rowKey: string; colKey: BucketKey; ratio: number; pct: number };
-    const cells: Cell[] = points.map((p) => ({
+    const cells = points.map((p) => ({
       rowKey: rows[p.y],
-      colKey: COLS[p.x] as BucketKey,
+      colKey: COLS[p.x],
       ratio: p.value,
       pct: p.pct,
     }));
@@ -158,31 +165,15 @@ export default function Heatmap({
 
     const parts: string[] = [];
     if (byRatioDesc[0])
-      parts.push(
-        `최고 비율: ${byRatioDesc[0].rowKey}·${byRatioDesc[0].colKey} ${pctFmt(
-          byRatioDesc[0].pct
-        )}`
-      );
+      parts.push(`최고 비율: ${byRatioDesc[0].rowKey}·${byRatioDesc[0].colKey} ${pctFmt(byRatioDesc[0].pct)}`);
     if (byRatioAsc[0])
-      parts.push(
-        `최저 비율: ${byRatioAsc[0].rowKey}·${byRatioAsc[0].colKey} ${pctFmt(
-          byRatioAsc[0].pct
-        )}`
-      );
+      parts.push(`최저 비율: ${byRatioAsc[0].rowKey}·${byRatioAsc[0].colKey} ${pctFmt(byRatioAsc[0].pct)}`);
     if (byPctDesc[0])
-      parts.push(
-        `절대값 최다: ${byPctDesc[0].rowKey}·${byPctDesc[0].colKey} ${pctFmt(
-          byPctDesc[0].pct
-        )}`
-      );
+      parts.push(`절대값 최다: ${byPctDesc[0].rowKey}·${byPctDesc[0].colKey} ${pctFmt(byPctDesc[0].pct)}`);
 
-    const insightText = parts.join("  •  ");
-    return { rows, points, insightText };
+    return { rows, points, insightText: parts.join("  •  ") };
   }, [laws]);
 
-  /* =========================
-     Highcharts 옵션
-  ========================== */
   const options: Highcharts.Options = useMemo(
     () => ({
       chart: {
@@ -217,7 +208,7 @@ export default function Heatmap({
         min: 0,
         max: 1,
         stops: [
-          [0, "#FFCDB2"],
+          [0, "#ffcdb2a6"],
           [1 / 3, "#FFB4A2"],
           [2 / 3, "#e5989bb2"],
           [1, "#b5828caf"],
@@ -231,9 +222,6 @@ export default function Heatmap({
           const yCatRaw = self.series.yAxis.categories[self.point.y];
           const yCat = Y_AXIS_LABEL_MAP[yCatRaw] || yCatRaw;
           const pct = self.point.pct as number;
-          // const xCat = (this.series.xAxis as any).categories[this.point.x];
-          // const yCat = (this.series.yAxis as any).categories[this.point.y];
-          // const pct = (this as any).pct as number;
           return `<div style="padding:4px 6px;">
             <div style="font-weight:600;margin-bottom:2px;">${yCat} · ${xCat}</div>
             <div>${pct.toFixed(1)}%</div>
@@ -265,9 +253,7 @@ export default function Heatmap({
               legend: { enabled: false },
               xAxis: { labels: { style: { fontSize: "10px" } } },
               yAxis: { labels: { style: { fontSize: "10px" } } },
-              series: [
-                { dataLabels: { style: { fontSize: "9px" } } },
-              ] as any,
+              series: [{ dataLabels: { style: { fontSize: "9px" } } }] as any,
             },
           },
         ],
@@ -276,9 +262,6 @@ export default function Heatmap({
     [rows, points]
   );
 
-  /* =========================
-     렌더링
-  ========================== */
   if (!hcReady)
     return (
       <div className="w-full h-full grid place-items-center text-neutral-400">
@@ -293,32 +276,21 @@ export default function Heatmap({
       </div>
     );
 
-  if (fetchErr)
-    return (
-      <div className="w-full h-full grid place-items-center text-rose-500">
-        ❌ 데이터 로드 실패: {fetchErr}
-      </div>
-    );
-
-  if (!laws.length)
-    return (
-      <div className="w-full h-full grid place-items-center text-neutral-400">
-        데이터가 없습니다.
-      </div>
-    );
-
   return (
     <div className="w-full h-full flex flex-col">
       <div className="rounded-2xl bg-white/55 backdrop-blur-md border border-white/60 ">
         <HighchartsReact highcharts={Highcharts} options={options} immutable />
       </div>
 
-      <div className="text-xs mt-2">
+      <div className="text-xs mt-5">
         <div className="rounded-2xl border border-neutral-200 bg-white p-3 shadow-sm text-neutral-800">
           {insightText && insightText.length > 0
             ? insightText
             : "표시할 인사이트가 없습니다."}
         </div>
+        {fetchErr && (
+          <div className="mt-2 text-red-400 text-xs italic">⚠️ {fetchErr}</div>
+        )}
       </div>
     </div>
   );

@@ -10,6 +10,9 @@ import {
   YAxis,
 } from "recharts";
 
+/* =========================
+   타입 정의
+========================= */
 type PeriodKey = "daily_timeline" | "weekly_timeline" | "monthly_timeline";
 
 type KpiDataItem = {
@@ -30,6 +33,9 @@ type KpiSummaryData = {
   };
 };
 
+/* =========================
+   상수
+========================= */
 const CATEGORIES = ["privacy", "child", "safety", "finance"] as const;
 const CATEGORY_TITLE: Record<string, string> = {
   privacy: "개인정보관련법",
@@ -37,16 +43,74 @@ const CATEGORY_TITLE: Record<string, string> = {
   safety: "중대재해처벌법",
   finance: "금융관련법",
 };
-
 const nf = new Intl.NumberFormat("ko-KR");
 
-// --- KST(Asia/Seoul) 기준 YYYY-MM-DD 유틸 ---
-const fmtKstDate = (d: Date) =>
-  new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(d); // 'YYYY-MM-DD'
+/* =========================
+   MOCK 데이터 (서버 꺼진 경우 사용)
+========================= */
+const mockKpiData: KpiSummaryData = {
+  privacy: {
+    summary: {
+      totalArticles: 240,
+      totalComments: 680,
+      newsGrowthRate: 0.12,
+      socialGrowthRate: 0.09,
+    },
+    dailyData: Array.from({ length: 14 }).map((_, i) => ({
+      date: `2025-07-${30 + i}`.replace(/-(\d)(?=$)/, "-0$1"),
+      news: Math.floor(Math.random() * 30 + 10),
+      social: Math.floor(Math.random() * 60 + 20),
+    })),
+  },
+  child: {
+    summary: {
+      totalArticles: 180,
+      totalComments: 310,
+      newsGrowthRate: -0.05,
+      socialGrowthRate: 0.02,
+    },
+    dailyData: Array.from({ length: 14 }).map((_, i) => ({
+      date: `2025-07-${30 + i}`.replace(/-(\d)(?=$)/, "-0$1"),
+      news: Math.floor(Math.random() * 20 + 5),
+      social: Math.floor(Math.random() * 30 + 10),
+    })),
+  },
+  safety: {
+    summary: {
+      totalArticles: 90,
+      totalComments: 200,
+      newsGrowthRate: 0.08,
+      socialGrowthRate: -0.03,
+    },
+    dailyData: Array.from({ length: 14 }).map((_, i) => ({
+      date: `2025-07-${30 + i}`.replace(/-(\d)(?=$)/, "-0$1"),
+      news: Math.floor(Math.random() * 10 + 3),
+      social: Math.floor(Math.random() * 15 + 5),
+    })),
+  },
+  finance: {
+    summary: {
+      totalArticles: 300,
+      totalComments: 420,
+      newsGrowthRate: 0.03,
+      socialGrowthRate: 0.01,
+    },
+    dailyData: Array.from({ length: 14 }).map((_, i) => ({
+      date: `2025-07-${30 + i}`.replace(/-(\d)(?=$)/, "-0$1"),
+      news: Math.floor(Math.random() * 40 + 10),
+      social: Math.floor(Math.random() * 60 + 15),
+    })),
+  },
+};
 
-// ✅ 고정된 마지막 날짜(2025-08-13) 기준 최근 14일 계산
+/* =========================
+   유틸
+========================= */
+const fmtKstDate = (d: Date) =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(d);
+
 const makeDefaultRange = (days = 14) => {
-  const end = new Date("2025-08-13T23:59:59+09:00"); // KST 기준 고정
+  const end = new Date("2025-08-13T23:59:59+09:00");
   const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000);
   return {
     start: fmtKstDate(start),
@@ -54,36 +118,33 @@ const makeDefaultRange = (days = 14) => {
   };
 };
 
+/* =========================
+   툴팁
+========================= */
 function TooltipContent({ active, payload, label, catLabel }: any) {
   if (!active || !payload?.length) return null;
   const p = payload.reduce((acc: any, cur: any) => {
     acc[cur.name] = cur.value;
     return acc;
   }, {});
-  const newsCum = p["뉴스 누적"] ?? 0;
-  const socialCum = p["여론 누적"] ?? 0;
-
   return (
     <div className="rounded-xl border border-white/70 bg-white/95 shadow-md backdrop-blur-sm p-3 text-xs text-neutral-700">
       <div className="font-semibold text-neutral-900 mb-1">{label}</div>
       <div className="space-y-0.5">
-        <div>
-          법안: <b>{catLabel}</b>
-        </div>
-        <div>
-          뉴스량 누적: <b>{nf.format(newsCum)}</b>
-        </div>
-        <div>
-          여론(찬·반) 누적: <b>{nf.format(socialCum)}</b>
-        </div>
+        <div>법안: <b>{catLabel}</b></div>
+        <div>뉴스량 누적: <b>{nf.format(p["뉴스 누적"] ?? 0)}</b></div>
+        <div>여론(찬·반) 누적: <b>{nf.format(p["여론 누적"] ?? 0)}</b></div>
       </div>
     </div>
   );
 }
 
+/* =========================
+   메인 컴포넌트
+========================= */
 type Props = {
-  startDate?: string; // YYYY-MM-DD
-  endDate?: string;   // YYYY-MM-DD
+  startDate?: string;
+  endDate?: string;
   period?: PeriodKey;
 };
 
@@ -96,18 +157,15 @@ export default function KpiSummary({
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [showRaw, setShowRaw] = useState<boolean>(false);
+  const [usedMock, setUsedMock] = useState<boolean>(false);
 
-  // --- 필수 파라미터를 항상 포함하도록 보장 ---
   const apiUrl = useMemo(() => {
     const base = "http://10.125.121.213:8080/api/dashboard/kpi-summary";
-    const defaults = makeDefaultRange(14); // ✅ 최근 14일
-
+    const defaults = makeDefaultRange(14);
     const s = (startDate && startDate.trim()) || defaults.start;
     const e = (endDate && endDate.trim()) || defaults.end;
-
     const qs = new URLSearchParams({ start: s, end: e });
     if (period) qs.set("period", period);
-
     return `${base}?${qs.toString()}`;
   }, [startDate, endDate, period]);
 
@@ -119,34 +177,20 @@ export default function KpiSummary({
       try {
         setLoading(true);
         setError(null);
+        setUsedMock(false);
 
         const res = await fetch(apiUrl, {
           cache: "no-store",
           signal: controller.signal,
         });
 
-        if (!res.ok) {
-          let bodyText = "";
-          try {
-            bodyText = await res.text();
-          } catch {}
-          const hint =
-            res.status === 400
-              ? "\n힌트: 서버가 start(및 end) 파라미터를 필수로 요구합니다. YYYY-MM-DD 형식인지와 KST 기준 날짜인지 확인하세요."
-              : "";
-          throw new Error(
-            `HTTP ${res.status} ${res.statusText}${
-              bodyText ? " - " + bodyText : ""
-            }${hint}`
-          );
-        }
+        if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
 
         const json = (await res.json()) as Record<string, any>;
 
         const KEY_MAPPING: Record<string, keyof typeof CATEGORY_TITLE> = {
           "개인정보보호법,정보통신망법": "privacy",
-          "자본시장법,특정금융정보법,전자금융거래법,전자증권법,금융소비자보호법":
-            "finance",
+          "자본시장법,특정금융정보법,전자금융거래법,전자증권법,금융소비자보호법": "finance",
           "아동복지법": "child",
           "중대재해처벌법": "safety",
         };
@@ -154,16 +198,16 @@ export default function KpiSummary({
         const mappedData: KpiSummaryData = {};
         for (const key in json) {
           const cat = KEY_MAPPING[key];
-          if (cat) {
-            mappedData[cat] = json[key];
-          }
+          if (cat) mappedData[cat] = json[key];
         }
 
         if (!aborted) setData(mappedData);
       } catch (e: any) {
         if (!aborted) {
-          setError(e?.message ?? "데이터 로드 실패");
-          setData(null);
+          console.warn("⚠️ KPI Summary fetch 실패 → mock 데이터 사용", e);
+          setUsedMock(true);
+          setData(mockKpiData);
+          setError("서버 데이터 대신 mock 데이터 사용 중");
         }
       } finally {
         if (!aborted) setLoading(false);
@@ -177,54 +221,26 @@ export default function KpiSummary({
     };
   }, [apiUrl]);
 
-  const handleDownload = () => {
-    if (!data) return;
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: "application/json;charset=utf-8",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    const fileNameParts = [
-      "kpi-summary",
-      new URL(apiUrl).searchParams.get("start") || "start",
-      new URL(apiUrl).searchParams.get("end") || "end",
-      new URL(apiUrl).searchParams.get("period") || "period",
-    ].filter(Boolean);
-    a.href = url;
-    a.download = `${fileNameParts.join("_")}.json`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  };
-
-  if (loading && !data) {
+  if (loading && !data)
     return (
       <div className="w-full h-[150px] grid place-items-center text-neutral-400">
         Loading KPI Summary…
       </div>
     );
-  }
 
-  if (error) {
-    return (
-      <div className="w-full h-[150px] grid place-items-center text-rose-500 text-sm whitespace-pre-wrap">
-        KPI Summary 로드 오류: {error}
-      </div>
-    );
-  }
-
-  if (!data) {
+  if (!data)
     return (
       <div className="w-full h-[150px] grid place-items-center text-neutral-400">
         데이터가 없습니다.
       </div>
     );
-  }
 
+  /* =========================
+     카드 구성
+  ========================== */
   const cards = CATEGORIES.map((cat) => {
     const catData = data[cat];
-    if (!catData) {
+    if (!catData)
       return {
         key: cat,
         title: CATEGORY_TITLE[cat],
@@ -232,16 +248,10 @@ export default function KpiSummary({
         totalComments: 0,
         newsGrowthRate: 0,
         socialGrowthRate: 0,
-        chartData: [] as Array<{
-          date: string;
-          "뉴스 누적": number;
-          "여론 누적": number;
-        }>,
+        chartData: [] as any[],
       };
-    }
 
     const { summary, dailyData } = catData;
-
     let accNews = 0;
     let accSocial = 0;
     const chartData = (dailyData ?? []).map((d) => {
@@ -257,17 +267,41 @@ export default function KpiSummary({
     return {
       key: cat,
       title: CATEGORY_TITLE[cat],
-      totalArticles: summary?.totalArticles ?? 0,
-      totalComments: summary?.totalComments ?? 0,
-      newsGrowthRate: summary?.newsGrowthRate ?? 0,
-      socialGrowthRate: summary?.socialGrowthRate ?? 0,
+      totalArticles: summary.totalArticles ?? 0,
+      totalComments: summary.totalComments ?? 0,
+      newsGrowthRate: summary.newsGrowthRate ?? 0,
+      socialGrowthRate: summary.socialGrowthRate ?? 0,
       chartData,
     };
   });
 
+  /* =========================
+     렌더링
+  ========================== */
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1 text-sm text-neutral-500 font-medium px-1 relative group">
+          핵심 요약 지표
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-4 w-4 text-neutral-400 cursor-pointer group-hover:text-neutral-600 transition"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" />
+          </svg>
+
+          {/* Tooltip */}
+          <div className="absolute top-6 left-0 z-10 hidden group-hover:block w-[240px] text-[11px] text-neutral-800 bg-white border border-neutral-200 shadow-md rounded-md p-3">
+            요약 지표는 주요 법안별로 <b>뉴스량</b>과 <b>여론량</b>의 추세를 시각화한 것입니다.
+            <br />
+            하단의 그래프는 일자별 누적치를 의미합니다.
+          </div>
+        </div>
+
         <button
           onClick={() => setShowRaw((v) => !v)}
           className="text-xs px-3 py-1.5 rounded-lg border border-neutral-300 bg-white/70 hover:bg-white transition"
@@ -275,16 +309,14 @@ export default function KpiSummary({
         >
           {showRaw ? "Raw JSON 닫기" : "Raw JSON 보기"}
         </button>
-        {showRaw && (
-          <button
-            onClick={handleDownload}
-            className="ml-2 text-xs px-3 py-1.5 rounded-lg border border-neutral-300 bg-white/70 hover:bg-white transition"
-            title="JSON 파일로 다운로드"
-          >
-            JSON 다운로드
-          </button>
-        )}
       </div>
+
+      {/* 
+      {usedMock && (
+        <div className="text-xs text-amber-600 mb-1 italic">
+          ⚠️ 서버 연결 실패로 mock 데이터 표시 중입니다.
+        </div>
+      )} */}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {cards.map((c) => {
@@ -294,12 +326,12 @@ export default function KpiSummary({
           return (
             <div
               key={c.key}
-              className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-lg border border-white/60 shadow-lg hover:shadow-xl hover:scale-[1.02] transition-transform duration-200 p-4"
+              className="rounded-2xl bg-gradient-to-br from-white/70 to-white/40 backdrop-blur-lg
+               border border-white/60 shadow-lg hover:shadow-xl hover:scale-[1.02] 
+               transition-transform duration-200 p-4"
             >
               <div className="flex items-center justify-between">
-                <div className="text-sm text-neutral-600 font-semibold">
-                  {c.title}
-                </div>
+                <div className="text-sm text-neutral-600 font-semibold">{c.title}</div>
               </div>
 
               <div className="mt-1 grid grid-cols-2 gap-3">
@@ -309,9 +341,8 @@ export default function KpiSummary({
                     {nf.format(c.totalArticles)}
                   </div>
                   <div
-                    className={`text-[11px] mt-0.5 flex items-center gap-1 ${
-                      upNews ? "text-emerald-600" : "text-rose-600"
-                    }`}
+                    className={`text-[11px] mt-0.5 flex items-center gap-1 ${upNews ? "text-emerald-600" : "text-rose-600"
+                      }`}
                   >
                     {c.newsGrowthRate > 0 && "▲"}
                     {c.newsGrowthRate < 0 && "▼"}
@@ -321,16 +352,13 @@ export default function KpiSummary({
                 </div>
 
                 <div>
-                  <div className="text-[11px] text-neutral-500">
-                    여론(찬·반) 합계
-                  </div>
+                  <div className="text-[11px] text-neutral-500">여론(찬·반) 합계</div>
                   <div className="font-semibold text-xl text-neutral-900">
                     {nf.format(c.totalComments)}
                   </div>
                   <div
-                    className={`text-[11px] mt-0.5 flex items-center gap-1 ${
-                      upSoc ? "text-emerald-600" : "text-rose-600"
-                    }`}
+                    className={`text-[11px] mt-0.5 flex items-center gap-1 ${upSoc ? "text-emerald-600" : "text-rose-600"
+                      }`}
                   >
                     {c.socialGrowthRate > 0 && "▲"}
                     {c.socialGrowthRate < 0 && "▼"}
@@ -342,10 +370,7 @@ export default function KpiSummary({
 
               <div className="mt-3 h-[100px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={c.chartData}
-                    margin={{ top: 6, right: 8, left: 0, bottom: 0 }}
-                  >
+                  <AreaChart data={c.chartData} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id={`gNews_${c.key}`} x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#64748b" stopOpacity={0.65} />
@@ -357,24 +382,9 @@ export default function KpiSummary({
                       </linearGradient>
                     </defs>
 
-                    <XAxis
-                      dataKey="date"
-                      tick={{ fontSize: 10, fill: "#6b7280" }}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 10, fill: "#6b7280" }}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <Tooltip
-                      position={{ y: -30 }}
-                      wrapperStyle={{ zIndex: 50, pointerEvents: "none" }}
-                      content={(props) => (
-                        <TooltipContent {...props} catLabel={c.title} />
-                      )}
-                    />
+                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#6b7280" }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: "#6b7280" }} tickLine={false} axisLine={false} />
+                    <Tooltip content={(props) => <TooltipContent {...props} catLabel={c.title} />} />
 
                     <Area
                       type="monotone"

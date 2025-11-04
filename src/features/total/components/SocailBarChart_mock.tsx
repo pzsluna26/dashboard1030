@@ -33,6 +33,36 @@ function formatCategory(value: string): string {
 }
 
 /* =========================
+   ✅ MOCK 데이터 (백엔드 실패 시 fallback)
+========================= */
+const mockData: BackendRow[] = [
+  {
+    category: "개인정보보호법,정보통신망법",
+    개정강화: 60,
+    폐지완화: 20,
+    현상유지: 20,
+  },
+  {
+    category: "아동복지법",
+    개정강화: 40,
+    폐지완화: 30,
+    현상유지: 30,
+  },
+  {
+    category: "중대재해처벌법",
+    개정강화: 20,
+    폐지완화: 50,
+    현상유지: 30,
+  },
+  {
+    category: "자본시장법,특정금융정보법,전자금융거래법,전자증권법,금융소비자보호법",
+    개정강화: 30,
+    폐지완화: 25,
+    현상유지: 45,
+  },
+];
+
+/* =========================
    메인 컴포넌트
 ========================= */
 export default function SocialBarChart({
@@ -51,42 +81,54 @@ export default function SocialBarChart({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ 날짜 범위 자동 계산
   const { start, end } = useMemo(() => {
     if (startDate && endDate) return { start: startDate, end: endDate };
     return getDefaultRange();
   }, [startDate, endDate]);
 
-  // ✅ API 데이터 fetch
+  /* =========================
+     ✅ 백엔드 fetch + mock fallback
+  ========================= */
   useEffect(() => {
-    const ac = new AbortController();
-    (async () => {
-      try {
-        setLoading(true);
-        setError(null);
+    // ✅ 서버가 꺼져있을 때는 mockData 바로 사용
+    setBackend(mockData);
+    setLoading(false);
+    setError(null);
+    // const ac = new AbortController();
+    // (async () => {
+    //   try {
+    //     setLoading(true);
+    //     setError(null);
 
-        const res = await fetch(
-          `http://10.125.121.213:8080/api/dashboard/social-bar?start=${start}&end=${end}`,
-          { cache: "no-store", signal: ac.signal }
-        );
-        if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+    //     const res = await fetch(
+    //       `http://10.125.121.213:8080/api/dashboard/social-bar?start=${start}&end=${end}`,
+    //       { cache: "no-store", signal: ac.signal }
+    //     );
 
-        const json: BackendPayload = await res.json();
-        setBackend(json.data ?? []);
-        console.log("📊 여론바차트json", json);
-      } catch (e: any) {
-        if (e.name !== "AbortError") {
-          console.error("❌ fetch 실패:", e);
-          setError(e.message);
-        }
-      } finally {
-        setLoading(false);
-      }
-    })();
+    //     if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+
+    //     const json: BackendPayload = await res.json();
+    //     if (json?.data?.length) {
+    //       setBackend(json.data);
+    //     } else {
+    //       console.warn("서버 응답이 비어있어 mock 데이터로 대체합니다.");
+    //       setBackend(mockData);
+    //     }
+    //   } catch (e: any) {
+    //     console.error("fetch 실패:", e);
+    //     setError(e.message);
+    //     setBackend(mockData); // ✅ 항상 fallback 보장
+    //   } finally {
+    //     setLoading(false);
+    //   }
+    // })();
+
     return () => ac.abort();
   }, [start, end, period]);
 
-  /* ---------- 데이터 변환 ---------- */
+  /* =========================
+     ✅ 차트 데이터 변환
+  ========================= */
   type Row = {
     category: string;
     reinforce: number;
@@ -127,6 +169,9 @@ export default function SocialBarChart({
     oppose: "#9CA3AF",
   } as const;
 
+  /* =========================
+     ✅ 렌더링 상태 처리
+  ========================= */
   if (loading)
     return (
       <div className="w-full h-[200px] grid place-items-center text-neutral-500">
@@ -142,11 +187,13 @@ export default function SocialBarChart({
   if (!chartData.length)
     return (
       <div className="w-full h-[200px] grid place-items-center text-neutral-500 text-sm">
-        데이터가 없습니다.
+        데이터가 없습니다. (mock 데이터 사용 중)
       </div>
     );
 
-  /* ---------- 렌더 ---------- */
+  /* =========================
+     ✅ 메인 렌더링
+  ========================= */
   return (
     <div className="w-full h-full flex flex-col">
       {/* 헤더 */}
@@ -163,7 +210,6 @@ export default function SocialBarChart({
                 : "text-neutral-700 hover:bg-neutral-100"
                 }`}
               onClick={() => setMode("percent")}
-              aria-pressed={mode === "percent"}
             >
               % 비율
             </button>
@@ -173,7 +219,6 @@ export default function SocialBarChart({
                 : "text-neutral-700 hover:bg-neutral-100"
                 }`}
               onClick={() => setMode("count")}
-              aria-pressed={mode === "count"}
             >
               건수
             </button>
@@ -228,8 +273,6 @@ export default function SocialBarChart({
           </BarChart>
         </ResponsiveContainer>
       </div>
-
-      {/* 하단 요약 테이블 */}
       <div className="mt-4 overflow-x-auto">
         <table className="min-w-full text-xs md:text-sm">
           <thead>
@@ -260,8 +303,7 @@ export default function SocialBarChart({
           </tbody>
         </table>
       </div>
-
-      {/* 종합 인사이트 */}
+      {/* 인사이트 요약 */}
       <div className="mt-5 rounded-2xl border border-neutral-200 bg-white/70 px-4 py-4">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-sm font-medium text-neutral-700">종합 인사이트</span>
@@ -286,7 +328,7 @@ export default function SocialBarChart({
 }
 
 /* =========================
-   헬퍼/유틸
+   유틸 컴포넌트
 ========================= */
 function LegendSwatch({ color, label }: { color: string; label: string }) {
   return (
@@ -326,6 +368,7 @@ function CustomTooltip({ active, payload, label, mode }: any) {
     </div>
   );
 }
+
 function Badge({
   children,
   tone = "neutral",
@@ -347,10 +390,8 @@ function Badge({
   );
 }
 
-
-
 /* =========================
-   인사이트 계산
+   인사이트 계산 함수
 ========================= */
 function buildInsights(rows: any[]) {
   const totalReinforce = rows.reduce((a, r) => a + r.reinforce, 0);
@@ -382,13 +423,16 @@ function buildInsights(rows: any[]) {
     pct: leadingTriples[0]?.value ?? 0,
   };
 
-  const topReinforce = rows.map((r) => ({ category: r.category, pct: r.reinforcePct }))
-    .sort((a, b) => b.pct - a.pct)[0] || { category: "-", pct: 0 };
+  const topReinforce =
+    rows
+      .map((r) => ({ category: r.category, pct: r.reinforcePct }))
+      .sort((a, b) => b.pct - a.pct)[0] || { category: "-", pct: 0 };
 
-  const topOppose = rows.map((r) => ({ category: r.category, pct: r.opposePct }))
-    .sort((a, b) => b.pct - a.pct)[0] || { category: "-", pct: 0 };
+  const topOppose =
+    rows
+      .map((r) => ({ category: r.category, pct: r.opposePct }))
+      .sort((a, b) => b.pct - a.pct)[0] || { category: "-", pct: 0 };
 
-  // 양극화: 가장 쏠림이 큰 / 가장 균형잡힌 카테고리
   const skewCalc = rows.map((r) => {
     const sorted = [r.reinforcePct, r.repealPct, r.opposePct].sort((a, b) => b - a);
     return {
@@ -397,8 +441,10 @@ function buildInsights(rows: any[]) {
     };
   });
 
-  const mostSkewed = skewCalc.sort((a, b) => b.gap - a.gap)[0] || { category: "-", gap: 0 };
-  const mostBalanced = skewCalc.sort((a, b) => a.gap - b.gap)[0] || { category: "-", gap: 0 };
+  const mostSkewed =
+    skewCalc.sort((a, b) => b.gap - a.gap)[0] || { category: "-", gap: 0 };
+  const mostBalanced =
+    skewCalc.sort((a, b) => a.gap - b.gap)[0] || { category: "-", gap: 0 };
 
   return {
     total,

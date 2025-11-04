@@ -3,12 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import type { PeriodKey } from "@/shared/types/common";
 
 interface NavbarProps {
   title: string;
-  period: PeriodKey;
-  setPeriod: (p: PeriodKey) => void;
   showSearch?: boolean;
 }
 
@@ -21,8 +18,7 @@ const categoryList = [
 
 export default function Nav({
   title,
-  period,
-  setPeriod,
+ 
   showSearch = true,
 }: NavbarProps) {
   const pathname = usePathname();
@@ -80,7 +76,7 @@ export default function Nav({
             </Link>
 
             {/* 뉴스분석 */}
-            <button
+            {/* <button
               onMouseEnter={() => setActiveTab("news")}
               className={`transition-colors rounded-lg p-1 text-xl ${
                 activeTab === "news"
@@ -91,10 +87,10 @@ export default function Nav({
               }`}
             >
               뉴스분석
-            </button>
+            </button> */}
 
             {/* 여론분석 */}
-            <button
+            {/* <button
               onMouseEnter={() => setActiveTab("social")}
               className={`transition-colors rounded-lg p-1 text-xl ${
                 activeTab === "social"
@@ -105,7 +101,7 @@ export default function Nav({
               }`}
             >
               여론분석
-            </button>
+            </button> */}
           </div>
 
           {/* 우측: 검색 + 로그인 */}

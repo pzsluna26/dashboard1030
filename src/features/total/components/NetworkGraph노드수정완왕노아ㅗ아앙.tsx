@@ -2,7 +2,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { ForceGraphMethods, LinkObject, NodeObject } from "react-force-graph-2d";
-import * as d3 from "d3";
 
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false });
 
@@ -55,6 +54,17 @@ export interface NetworkGraphProps {
   maxArticles?: number;
 }
 
+function inDateRange(dateStr: string, start?: string, end?: string) {
+  if (!start && !end) return true;
+  const n = (s?: string) => (s ? new Date(s + "T00:00:00").getTime() : undefined);
+  const d = new Date(dateStr + "T00:00:00").getTime();
+  const s = n(start);
+  const e = n(end);
+  if (s !== undefined && d < s) return false;
+  if (e !== undefined && d > e) return false;
+  return true;
+}
+
 function slugify(s: string) {
   return String(s)
     .normalize("NFKD")
@@ -64,10 +74,10 @@ function slugify(s: string) {
     .toLowerCase();
 }
 
-/** 새 구조만 사용 (간결화) */
+/** ✅ 새 JSON 구조와 구 addsocial 구조 모두 지원 */
 function buildGraph(
   raw: any,
-  _opts: { startDate?: string; endDate?: string; period?: PeriodKey; maxArticles: number }
+  opts: { startDate?: string; endDate?: string; period?: PeriodKey; maxArticles: number }
 ) {
   if (raw?.nodes && Array.isArray(raw.nodes)) {
     const nodes: (LegalNode | IncidentNode)[] = [];
@@ -76,36 +86,47 @@ function buildGraph(
     for (const category of raw.nodes) {
       const label = category.label ?? String(category.id ?? "");
       const id: string =
-        category.id ?? `${slugify(label)}-${Math.random().toString(36).slice(2, 8)}`;
+        category.id ?? `${slugify(label)}-${Math.random().toString(36).slice(2, 8)}`; // 🔥 고유 ID
 
       const items: any[] = Array.isArray(category.incidents) ? category.incidents : [];
 
       const normalized = items
         .map((it, idx) => {
           if (!it) return null;
+          if (typeof it === "string") {
+            return {
+              id: `${id}::incident-${idx}-${Math.random().toString(36).slice(2, 8)}`, // 🔥 고유화
+              label: it,
+              weight: 1,
+              count: 1,
+              countsBy: { agree: 0, repeal: 0, neutral: 0 } as CountsBy,
+              sample: { agree: [], repeal: [], neutral: [] },
+            };
+          }
+
           const name = it?.name ?? `incident-${idx}`;
           const agreeCnt = it?.["개정강화"]?.count ?? 0;
           const repealCnt = it?.["폐지완화"]?.count ?? it?.["폐지약화"]?.count ?? 0;
           const neutralCnt = it?.["현상유지"]?.count ?? 0;
           const total = agreeCnt + repealCnt + neutralCnt;
 
+          const agreeOps: string[] = Array.isArray(it?.["개정강화"]?.opinions) ? it["개정강화"].opinions : [];
+          const repealOps: string[] =
+            Array.isArray(it?.["폐지완화"]?.opinions)
+              ? it["폐지완화"].opinions
+              : (Array.isArray(it?.["폐지약화"]?.opinions) ? it["폐지약화"].opinions : []);
+          const neutralOps: string[] = Array.isArray(it?.["현상유지"]?.opinions) ? it["현상유지"].opinions : [];
+
           return {
-            id: `${id}::${slugify(name)}-${idx}-${Math.random().toString(36).slice(2, 8)}`,
+            id: `${id}::${slugify(name)}-${idx}-${Math.random().toString(36).slice(2, 8)}`, // 🔥 고유 ID 보장
             label: name,
             weight: Math.max(1, total),
             count: Math.max(1, total),
             countsBy: { agree: agreeCnt, repeal: repealCnt, neutral: neutralCnt } as CountsBy,
-            sample: {
-              agree: Array.isArray(it?.["개정강화"]?.opinions) ? it["개정강화"].opinions : [],
-              repeal:
-                Array.isArray(it?.["폐지완화"]?.opinions)
-                  ? it["폐지완화"].opinions
-                  : (Array.isArray(it?.["폐지약화"]?.opinions) ? it["폐지약화"].opinions : []),
-              neutral: Array.isArray(it?.["현상유지"]?.opinions) ? it["현상유지"].opinions : [],
-            },
+            sample: { agree: agreeOps, repeal: repealOps, neutral: neutralOps },
           };
         })
-        .filter(Boolean) as any[];
+        .filter(Boolean);
 
       nodes.push({
         id,
@@ -135,31 +156,86 @@ function buildGraph(
 
     return { nodes, links };
   }
-  return { nodes: [], links: [] };
-}
 
-/** 사건 노드가 법조항 주변 반경 내로 못 들어오게 보정 */
-function repelFromLegal(alpha: number, nodes: BaseNode[]) {
-  const legals = nodes.filter((n): n is BaseNode => !!n && n.type === "legal");
-  const incidents = nodes.filter((n): n is BaseNode => !!n && n.type === "incident");
+  // ─────────────── addsocial fallback (기존 로직) ───────────────
+  const { startDate, endDate, maxArticles } = opts;
+  const domains: string[] = Object.keys(raw || {});
+  const legalMap: Record<string, { total: number; incidents: Record<string, IncidentNode> }> = {};
 
-  incidents.forEach((inc) => {
-    if (inc.x == null || inc.y == null) return;
+  for (const dom of domains) {
+    const daily = raw[dom]?.addsocial?.["daily_timeline"] || {};
+    for (const dateStr of Object.keys(daily)) {
+      if (!inDateRange(dateStr, startDate, endDate)) continue;
+      const dayEntry = daily[dateStr];
+      const mids = dayEntry?.["중분류목록"] || {};
+      for (const mid of Object.keys(mids)) {
+        const midObj = mids[mid];
+        const subs = midObj?.["소분류목록"] || {};
+        for (const subKey of Object.keys(subs)) {
+          const s = subs[subKey];
+          const agreeList = (s?.["찬성"]?.["개정강화"]?.["소셜목록"] || []) as Array<{ content: string }>;
+          const repealList = (s?.["찬성"]?.["폐지약화"]?.["소셜목록"] || []) as Array<{ content: string }>;
+          const disagreeList = (s?.["반대"]?.["소셜목록"] || []) as Array<{ content: string }>;
+          const count = agreeList.length + repealList.length + disagreeList.length;
 
-    legals.forEach((legal) => {
-      if (legal.x == null || legal.y == null) return;
+          if (!legalMap[mid]) legalMap[mid] = { total: 0, incidents: {} };
+          const incId = `${mid}::${subKey}-${Math.random().toString(36).slice(2, 8)}`; // 🔥 고유화
+          if (!legalMap[mid].incidents[incId]) {
+            legalMap[mid].incidents[incId] = {
+              id: incId,
+              type: "incident",
+              label: subKey.replace(`${mid}_`, ""),
+              count: 0,
+              mid,
+              sample: { agree: [], repeal: [], neutral: [] },
+              countsBy: { agree: 0, repeal: 0, neutral: 0 },
+            };
+          }
 
-      const dx = inc.x - legal.x;
-      const dy = inc.y - legal.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const minDist = 120; // 법조항 사각형을 고려한 최소 거리
-      if (dist < minDist && dist > 0.0001) {
-        const push = (minDist - dist) * alpha * 0.8;
-        inc.x += (dx / dist) * push;
-        inc.y += (dy / dist) * push;
+          const inc = legalMap[mid].incidents[incId];
+          inc.count += count;
+          inc.countsBy!.agree += agreeList.length;
+          inc.countsBy!.repeal += repealList.length;
+          inc.sample!.agree!.push(...agreeList.slice(0, 2).map((x) => x.content));
+          inc.sample!.repeal!.push(...repealList.slice(0, 2).map((x) => x.content));
+          legalMap[mid].total += count;
+        }
       }
+    }
+  }
+
+  const topLegal = Object.keys(legalMap)
+    .map((k) => ({ mid: k, total: legalMap[k].total }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, maxArticles)
+    .map((x) => x.mid);
+
+  const nodes: (LegalNode | IncidentNode)[] = [];
+  const links: LinkDatum[] = [];
+
+  for (const mid of topLegal) {
+    nodes.push({
+      id: `${mid}-${Math.random().toString(36).slice(2, 8)}`, // 🔥 고유화
+      type: "legal",
+      label: mid,
+      totalCount: legalMap[mid].total,
     });
-  });
+
+    const incs = Object.values(legalMap[mid].incidents).filter((i) => i.count > 0);
+    incs
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
+      .forEach((inc) => {
+        nodes.push(inc);
+        links.push({
+          source: mid,
+          target: inc.id,
+          weight: inc.count,
+        });
+      });
+  }
+
+  return { nodes, links };
 }
 
 function makeSqrtSizeScale(counts: number[], outMin = 8, outMax = 36) {
@@ -189,7 +265,7 @@ function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: n
   ctx.closePath();
 }
 
-/** 메인 컴포넌트 */
+/** ✅ 메인 컴포넌트 */
 export default function NetworkGraph({
   data,
   startDate,
@@ -199,69 +275,49 @@ export default function NetworkGraph({
 }: NetworkGraphProps) {
   const fgRef = useRef<ForceGraphMethods>();
   const [selected, setSelected] = useState<LegalNode | IncidentNode | null>(null);
-  const [activeTab, setActiveTab] = useState<"agree" | "repeal" | "disagree">("agree");
-
   const graph = useMemo(
     () => buildGraph(data, { startDate, endDate, period, maxArticles }),
     [data, startDate, endDate, period, maxArticles]
   );
 
-  // Force 설정
+  const sortedIncidents = useMemo(() => {
+    return (graph.nodes as IncidentNode[])
+      .filter((n) => n.type === "incident")
+      .sort((a, b) => b.count - a.count);
+  }, [graph.nodes]);
+
+  const [incidentIndex, setIncidentIndex] = useState(0);
+  const [activeTab, setActiveTab] = useState<"agree" | "repeal" | "disagree">("agree");
+
   useEffect(() => {
-    if (!fgRef.current) return;
-    const fg = fgRef.current;
+    if (!sortedIncidents.length) return;
+    const idx =
+      selected?.type === "incident"
+        ? sortedIncidents.findIndex((x) => x.id === selected.id)
+        : 0;
+    setIncidentIndex(Math.max(0, idx));
+    if (!selected) setSelected(sortedIncidents[0]);
+  }, [sortedIncidents]);
 
-    fg.d3Force("link")?.distance((link: any) => 100 + Math.sqrt(link.weight ?? 1) * 2);
-    fg.d3Force("link")?.strength(0.4);
-    fg.d3Force("charge")?.strength(-300);
-
-    // 기본 충돌 방지 (사각형 근사)
-    fg.d3Force(
-      "collide",
-      d3
-        .forceCollide()
-        .radius((node: any) => (node.type === "legal" ? 75 : 35))
-        .strength(1.0)
-    );
-
-    fg.d3ReheatSimulation();
-  }, [graph]);
-
-  // 노드 크기 스케일
   const sizeScale = useMemo(() => {
-    const counts = graph.nodes.filter((n: any) => n.type === "incident").map((n: any) => n.count as number);
+    const counts = graph.nodes
+      .filter((n: any) => n.type === "incident")
+      .map((n: any) => n.count as number);
     return makeSqrtSizeScale(counts);
   }, [graph.nodes]);
 
   const width = 920;
   const height = 290;
 
-  // ✅ 탭 메타 (누락되면 ReferenceError)
   const tabMeta = useMemo(() => {
     return {
-      agree: {
-        label: "개정강화",
-        getCount: (n?: IncidentNode) => n?.countsBy?.agree ?? 0,
-        getList: (n?: IncidentNode) => n?.sample?.agree ?? [],
-      },
-      repeal: {
-        label: "폐지완화",
-        getCount: (n?: IncidentNode) => n?.countsBy?.repeal ?? 0,
-        getList: (n?: IncidentNode) => n?.sample?.repeal ?? [],
-      },
-      disagree: {
-        label: "현상유지",
-        getCount: (n?: IncidentNode) => n?.countsBy?.neutral ?? 0,
-        getList: (n?: IncidentNode) => n?.sample?.neutral ?? [],
-      },
+      agree: { label: "개정강화", getCount: (n?: IncidentNode) => n?.countsBy?.agree ?? 0, getList: (n?: IncidentNode) => n?.sample?.agree ?? [] },
+      repeal: { label: "폐지완화", getCount: (n?: IncidentNode) => n?.countsBy?.repeal ?? 0, getList: (n?: IncidentNode) => n?.sample?.repeal ?? [] },
+      disagree: { label: "현상유지", getCount: (n?: IncidentNode) => n?.countsBy?.neutral ?? 0, getList: (n?: IncidentNode) => n?.sample?.neutral ?? [] },
     } as const;
   }, []);
 
-  // ✅ 현재 선택된 인시던트
-  const selIncident =
-    selected && selected.type === "incident"
-      ? (selected as IncidentNode)
-      : undefined;
+  const selIncident = selected && selected.type === "incident" ? (selected as IncidentNode) : undefined;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full h-[400px]">
@@ -273,7 +329,7 @@ export default function NetworkGraph({
         </div>
         <div className="mt-4 rounded-xl overflow-hidden" style={{ width: "100%", height }}>
           <ForceGraph2D
-            key={graph.nodes.map((n) => n.id).join(",")}
+            key={graph.nodes.map((n) => n.id).join(",")} // 🔥 그래프 리렌더 강제
             nodeId="id"
             ref={fgRef as any}
             width={width}
@@ -286,11 +342,6 @@ export default function NetworkGraph({
             linkColor={() => "#9aa4b2"}
             linkOpacity={0.6}
             onNodeClick={(n) => setSelected(n as any)}
-            /** 좌표 계산된 이후 매 tick마다 겹침 보정 */
-            onEngineTick={() => {
-              if (!graph?.nodes?.length) return;
-              repelFromLegal(0.3, graph.nodes as BaseNode[]);
-            }}
             nodeCanvasObject={(node, ctx) => {
               const n = node as LegalNode | IncidentNode;
               const label = n.label ?? "";
@@ -307,7 +358,10 @@ export default function NetworkGraph({
                 ctx.lineWidth = 1.5;
                 ctx.stroke();
               } else {
-                const w = 140, h = 44, x = n.x! - w / 2, y = n.y! - h / 2;
+                const w = 140,
+                  h = 44,
+                  x = n.x! - w / 2,
+                  y = n.y! - h / 2;
                 ctx.fillStyle = "#fff7ed";
                 roundRectPath(ctx, x, y, w, h, 10);
                 ctx.fill();
@@ -327,7 +381,10 @@ export default function NetworkGraph({
                 ctx.arc(n.x!, n.y!, r + 2, 0, 2 * Math.PI);
                 ctx.fill();
               } else {
-                const w = 140, h = 44, x = n.x! - w / 2, y = n.y! - h / 2;
+                const w = 140,
+                  h = 44,
+                  x = n.x! - w / 2,
+                  y = n.y! - h / 2;
                 roundRectPath(ctx, x, y, w, h, 10);
                 ctx.fill();
               }
@@ -353,6 +410,7 @@ export default function NetworkGraph({
                 </p>
               )}
             </div>
+
             <div className="text-xs text-neutral-500">
               총 사건 수: <b className="text-neutral-700">{(selected as LegalNode).totalCount}</b>
             </div>
@@ -372,9 +430,7 @@ export default function NetworkGraph({
                   onClick={() => setActiveTab(k)}
                 >
                   <div className="text-[11px] text-neutral-500">{tabMeta[k].label}</div>
-                  <div className="text-[13px] font-semibold">
-                    {tabMeta[k].getCount(selIncident).toLocaleString()}건
-                  </div>
+                  <div className="text-[13px] font-semibold">{tabMeta[k].getCount(selIncident).toLocaleString()}건</div>
                 </div>
               ))}
             </div>
@@ -382,11 +438,13 @@ export default function NetworkGraph({
             <div className="mt-1">
               <div className="text-xs text-neutral-500 mb-1">{tabMeta[activeTab].label} 의견</div>
               <ul className="space-y-1.5 max-h-28 overflow-auto pr-1">
-                {(tabMeta[activeTab].getList(selIncident) || []).slice(0, 6).map((t, i) => (
-                  <li key={i} className="text-[12px] leading-snug bg-white/60 border border-neutral-200 rounded-md px-2 py-1">
-                    • {t}
-                  </li>
-                ))}
+                {(tabMeta[activeTab].getList(selIncident) || [])
+                  .slice(0, 6)
+                  .map((t, i) => (
+                    <li key={i} className="text-[12px] leading-snug bg-white/60 border border-neutral-200 rounded-md px-2 py-1">
+                      • {t}
+                    </li>
+                  ))}
                 {tabMeta[activeTab].getList(selIncident)?.length === 0 && (
                   <li className="text-[12px] text-neutral-400">표시할 의견이 없습니다.</li>
                 )}

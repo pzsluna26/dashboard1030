@@ -35,10 +35,22 @@ const getDefaultRange = () => {
   const end = new Date("2025-08-13T23:59:59+09:00");
   const start = new Date(end.getTime() - 13 * 24 * 60 * 60 * 1000);
   return {
-    start: fmtKstDate(start), // 예: 2025-07-31
-    end: fmtKstDate(end),     // 예: 2025-08-13
+    start: fmtKstDate(start),
+    end: fmtKstDate(end),
   };
 };
+
+/** ✅ MOCK DATA (14일 분량) */
+const mockRawData: RawPoint[] = Array.from({ length: 14 }, (_, i) => {
+  const date = new Date("2025-07-31");
+  date.setDate(date.getDate() + i);
+  return {
+    date: fmtKstDate(date),
+    개정강화: Math.floor(Math.random() * 50 + 30),
+    폐지완화: Math.floor(Math.random() * 30 + 10),
+    현상유지: Math.floor(Math.random() * 20 + 5),
+  };
+});
 
 export default function LegislativeStanceAreaHC({
   startDate,
@@ -49,7 +61,6 @@ export default function LegislativeStanceAreaHC({
 }) {
   const [rawData, setRawData] = useState<RawPoint[]>([]);
 
-  // ✅ props가 비어 있으면 기본 날짜를 사용
   const { start: defaultStart, end: defaultEnd } = useMemo(() => getDefaultRange(), []);
   const effectiveStart = startDate || defaultStart;
   const effectiveEnd = endDate || defaultEnd;
@@ -63,23 +74,25 @@ export default function LegislativeStanceAreaHC({
           `http://10.125.121.213:8080/api/dashboard/stance-area?start=${effectiveStart}&end=${effectiveEnd}`,
           { cache: "no-store" }
         );
-        const json = await res.json();
 
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const json = await res.json();
         const data = Array.isArray(json.data) ? json.data : [];
+        if (!data.length) throw new Error("Empty data");
+
         setRawData(data);
         console.log("✅ 패치된 데이터", { effectiveStart, effectiveEnd, data });
       } catch (err) {
-        console.error("❌ Failed to fetch stance area data:", err);
+        console.warn("⚠️ 입장 스택 fetch 실패 → mock 데이터 사용", err);
+        setRawData(mockRawData);
       }
     };
 
     fetchData();
   }, [effectiveStart, effectiveEnd]);
 
-  // 안전한 카테고리 처리
-  const categories = rawData.map((d) =>
-    d.date ? d.date.slice(5) : ""
-  );
+  const categories = rawData.map((d) => d.date ? d.date.slice(5) : "");
 
   const agreeSeries: SeriesPoint[] = rawData.map((d) => ({
     y: d["개정강화"],
@@ -189,7 +202,6 @@ export default function LegislativeStanceAreaHC({
             })}
           </div>
 
-          {/* ✅ 핵심 인사이트 요약 */}
           <div className="mt-1 text-center text-[13px] text-neutral-600 font-medium bg-white/60 backdrop-blur rounded-lg px-4 py-2 border border-neutral-200">
             {(() => {
               const entries = [
@@ -216,7 +228,6 @@ export default function LegislativeStanceAreaHC({
           </div>
         </>
       )}
-
     </div>
   );
 }
