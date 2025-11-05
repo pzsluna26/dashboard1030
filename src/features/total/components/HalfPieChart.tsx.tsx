@@ -13,8 +13,8 @@ interface HalfPieChartProps {
 }
 
 const COLORS = {
-  agree: "#34d399", // 개정강화
-  repeal: "#f97316", // 폐지완화
+  agree: "#9abdf7ff", // 개정강화
+  repeal: "#a2c1ddff", // 폐지완화
   disagree: "#94a3b8", // 현상유지
 };
 
@@ -22,8 +22,11 @@ export default function HalfPieChart({ data, onSelect, activeKey }: HalfPieChart
   // 유효 데이터 (0값은 제외)
   const visibleData = data.filter((d) => d.value > 0);
 
+  // 클릭된 조각의 label
+  const activeLabel = data.find((d) => d.key === activeKey)?.label ?? "";
+
   return (
-    <div className="w-full flex flex-col items-center">
+    <div className="w-full flex flex-col items-center relative">
       <PieChart width={260} height={160}>
         <Pie
           data={visibleData}
@@ -33,7 +36,7 @@ export default function HalfPieChart({ data, onSelect, activeKey }: HalfPieChart
           endAngle={0}
           innerRadius={40}
           outerRadius={80}
-          paddingAngle={2}
+          paddingAngle={0}
           dataKey="value"
           isAnimationActive={true}
           onClick={(entry) => onSelect(entry.key)} // ✅ slice 클릭 시 onSelect 호출
@@ -49,11 +52,22 @@ export default function HalfPieChart({ data, onSelect, activeKey }: HalfPieChart
             />
           ))}
         </Pie>
-        <Tooltip
-          formatter={(val: number, name) => [`${val}건`, name]}
-          labelFormatter={() => ""}
-        />
+        <Tooltip formatter={(val: number, name) => [`${val}건`, name]} labelFormatter={() => ""} />
       </PieChart>
+
+      {/* ✅ 중앙에 클릭된 조각의 label 표시 */}
+      {activeLabel && (
+        <div
+          className="absolute text-sm font-semibold text-neutral-700 select-none pointer-events-none"
+          style={{
+            top: "100px", // 반원 중심 근처 위치
+            left: "52%",
+            transform: "translateX(-50%)",
+          }}
+        >
+          {activeLabel}
+        </div>
+      )}
 
       {/* 범례 */}
       <div className="flex justify-center gap-4 text-xs mt-1">
@@ -61,8 +75,10 @@ export default function HalfPieChart({ data, onSelect, activeKey }: HalfPieChart
           <div
             key={d.key}
             onClick={() => onSelect(d.key)}
-            className={`flex items-center gap-1 cursor-pointer ${
-              activeKey === d.key ? "text-emerald-600 font-semibold" : "text-neutral-600"
+            className={`flex items-center gap-1 cursor-pointer transition-colors ${
+              activeKey === d.key
+                ? "text-gray-900 font-semibold"
+                : "text-neutral-600"
             }`}
           >
             <span
