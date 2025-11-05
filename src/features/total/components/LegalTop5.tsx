@@ -87,7 +87,7 @@ export default function LegalTop5({
   if (loading) {
     return (
       <div className="h-full rounded-2xl bg-white/55 backdrop-blur-md border border-white/60 p-4">
-        <div className="text-sm  text-neutral-800">입법수요 TOP 3</div>
+        <div className="text-sm  text-neutral-800">가장 핫한 법안 TOP 3</div>
         <div className="mt-1 text-xs text-neutral-500">데이터 로딩 중...</div>
       </div>
     );
@@ -96,7 +96,7 @@ export default function LegalTop5({
   if (!topItems.length) {
     return (
       <div className="h-full rounded-2xl bg-white/55 backdrop-blur-md border border-white/60 p-4">
-        <div className="text-sm text-neutral-800">입법수요 TOP 3</div>
+        <div className="text-sm text-neutral-800">가장 핫한 법안 TOP 3</div>
         <div className="mt-1 text-xs text-neutral-500">선택한 기간에 해당하는 데이터가 없습니다.</div>
       </div>
     );
@@ -106,7 +106,7 @@ export default function LegalTop5({
     <div className="h-full rounded-2xl border border-white/60 bg-white/60 backdrop-blur-md p-4 shadow-lg">
       <div className="flex items-baseline justify-between">
         <div className="flex items-center gap-1 text-sm text-neutral-600 relative group">
-          입법수요 TOP {topItems.length}
+          가장 핫한 법안 TOP {topItems.length}
           <svg
             xmlns="http://www.w3.org/2000/svg"
             className="h-4 w-4 text-neutral-400 cursor-pointer group-hover:text-neutral-600 transition"
@@ -119,7 +119,7 @@ export default function LegalTop5({
           </svg>
 
           <div className="absolute top-6 left-0 z-10 hidden group-hover:block w-[260px] text-[11px] text-neutral-800 bg-white border border-neutral-200 shadow-md rounded-md p-3">
-            댓글 수 기준으로 가장 많은 입법 의견이 집중된 법안 TOP {topItems.length}입니다.
+            댓글 수 기준으로 가장 많은 여론의 관심이 집중된 법안 TOP {topItems.length}입니다.
             <br />
           </div>
         </div>
