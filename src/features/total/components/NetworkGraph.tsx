@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { ForceGraphMethods, LinkObject, NodeObject } from "react-force-graph-2d";
 import * as d3 from "d3";
+import HalfPieChart from "./HalfPieChart.tsx";
 
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false });
 
@@ -64,7 +65,6 @@ function slugify(s: string) {
     .toLowerCase();
 }
 
-/** 새 구조만 사용 (간결화) */
 function buildGraph(
   raw: any,
   _opts: { startDate?: string; endDate?: string; period?: PeriodKey; maxArticles: number }
@@ -138,7 +138,6 @@ function buildGraph(
   return { nodes: [], links: [] };
 }
 
-/** 사건 노드가 법조항 주변 반경 내로 못 들어오게 보정 */
 function repelFromLegal(alpha: number, nodes: BaseNode[]) {
   const legals = nodes.filter((n): n is BaseNode => !!n && n.type === "legal");
   const incidents = nodes.filter((n): n is BaseNode => !!n && n.type === "incident");
@@ -152,7 +151,7 @@ function repelFromLegal(alpha: number, nodes: BaseNode[]) {
       const dx = inc.x - legal.x;
       const dy = inc.y - legal.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      const minDist = 120; // 법조항 사각형을 고려한 최소 거리
+      const minDist = 120;
       if (dist < minDist && dist > 0.0001) {
         const push = (minDist - dist) * alpha * 0.8;
         inc.x += (dx / dist) * push;
@@ -189,7 +188,6 @@ function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: n
   ctx.closePath();
 }
 
-/** 메인 컴포넌트 */
 export default function NetworkGraph({
   data,
   startDate,
@@ -201,58 +199,34 @@ export default function NetworkGraph({
   const [selected, setSelected] = useState<LegalNode | IncidentNode | null>(null);
   const [activeTab, setActiveTab] = useState<"agree" | "repeal" | "disagree">("agree");
 
- const truncateText = (text: string, maxLength: number) => {
-  if (!text) return "";
-  return text.length > maxLength ? text.slice(0, maxLength) + "..." : text;
-};
+  const truncateText = (text: string, maxLength: number) =>
+    text?.length > maxLength ? text.slice(0, maxLength) + "..." : text ?? "";
 
-  const graph = useMemo(() => {
-    console.log("연결망 섹션 생성 시점과 데이터:", {
-      startDate,
-      endDate,
-      maxArticles,
-      rawData: data,
-    });
+  const graph = useMemo(
+    () => buildGraph(data, { startDate, endDate, period, maxArticles }),
+    [data, startDate, endDate, period, maxArticles]
+  );
 
-    return buildGraph(data, { startDate, endDate, period, maxArticles });
-    
-  }, [data, startDate, endDate, period, maxArticles]);
-useEffect(() => {
-  if (!graph?.nodes?.length) return;
+  useEffect(() => {
+    if (!graph?.nodes?.length) return;
+    const incidents = graph.nodes.filter((n) => n.type === "incident") as IncidentNode[];
+    if (incidents.length === 0) return;
+    setSelected(incidents[Math.floor(Math.random() * incidents.length)]);
+  }, [graph]);
 
-  // incident 노드만 필터
-  const incidentNodes = graph.nodes.filter((n) => n.type === "incident") as IncidentNode[];
-
-  if (incidentNodes.length === 0) return;
-
-  // 랜덤 노드 선택
-  const randomNode = incidentNodes[Math.floor(Math.random() * incidentNodes.length)];
-
-  setSelected(randomNode);
-}, [graph]);
-
-  // Force 설정
   useEffect(() => {
     if (!fgRef.current) return;
     const fg = fgRef.current;
-
-    fg.d3Force("link")?.distance((link: any) => 100 + Math.sqrt(link.weight ?? 1) * 2);
+    fg.d3Force("link")?.distance((l: any) => 100 + Math.sqrt(l.weight ?? 1) * 2);
     fg.d3Force("link")?.strength(0.4);
     fg.d3Force("charge")?.strength(-300);
-
-    // 기본 충돌 방지 (사각형 근사)
     fg.d3Force(
       "collide",
-      d3
-        .forceCollide()
-        .radius((node: any) => (node.type === "legal" ? 75 : 35))
-        .strength(1.0)
+      d3.forceCollide().radius((n: any) => (n.type === "legal" ? 75 : 35)).strength(1.0)
     );
-
     fg.d3ReheatSimulation();
   }, [graph]);
 
-  // 노드 크기 스케일
   const sizeScale = useMemo(() => {
     const counts = graph.nodes.filter((n: any) => n.type === "incident").map((n: any) => n.count as number);
     return makeSqrtSizeScale(counts);
@@ -261,36 +235,18 @@ useEffect(() => {
   const width = 920;
   const height = 490;
 
-  // ✅ 탭 메타 (누락되면 ReferenceError)
   const tabMeta = useMemo(() => {
     return {
-      agree: {
-        label: "개정강화",
-        getCount: (n?: IncidentNode) => n?.countsBy?.agree ?? 0,
-        getList: (n?: IncidentNode) => n?.sample?.agree ?? [],
-      },
-      repeal: {
-        label: "폐지완화",
-        getCount: (n?: IncidentNode) => n?.countsBy?.repeal ?? 0,
-        getList: (n?: IncidentNode) => n?.sample?.repeal ?? [],
-      },
-      disagree: {
-        label: "현상유지",
-        getCount: (n?: IncidentNode) => n?.countsBy?.neutral ?? 0,
-        getList: (n?: IncidentNode) => n?.sample?.neutral ?? [],
-      },
+      agree: { label: "개정강화", getCount: (n?: IncidentNode) => n?.countsBy?.agree ?? 0, getList: (n?: IncidentNode) => n?.sample?.agree ?? [] },
+      repeal: { label: "폐지완화", getCount: (n?: IncidentNode) => n?.countsBy?.repeal ?? 0, getList: (n?: IncidentNode) => n?.sample?.repeal ?? [] },
+      disagree: { label: "현상유지", getCount: (n?: IncidentNode) => n?.countsBy?.neutral ?? 0, getList: (n?: IncidentNode) => n?.sample?.neutral ?? [] },
     } as const;
   }, []);
 
-  // ✅ 현재 선택된 인시던트
-  const selIncident =
-    selected && selected.type === "incident"
-      ? (selected as IncidentNode)
-      : undefined;
+  const selIncident = selected && selected.type === "incident" ? (selected as IncidentNode) : undefined;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 w-full h-[400px]">
-      {/* LEFT: Graph */}
       <div className="lg:col-span-2 bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl ring-1 ring-white/70 p-4">
         <div className="flex items-center gap-2 text-xs text-neutral-600">
           <span className="inline-block w-3 h-3 rounded-full bg-[#e6f0ff] border border-[#7aa1ff]" /> Incident
@@ -311,14 +267,9 @@ useEffect(() => {
             linkColor={() => "#9aa4b2"}
             linkOpacity={0.6}
             onNodeClick={(n) => setSelected(n as any)}
-            /** 좌표 계산된 이후 매 tick마다 겹침 보정 */
-            onEngineTick={() => {
-              if (!graph?.nodes?.length) return;
-              repelFromLegal(0.3, graph.nodes as BaseNode[]);
-            }}
+            onEngineTick={() => repelFromLegal(0.3, graph.nodes as BaseNode[])}
             nodeCanvasObject={(node, ctx) => {
               const n = node as LegalNode | IncidentNode;
-              const label = n.label ?? "";
               ctx.font = `${n.type === "legal" ? 12 : 11}px Inter`;
               ctx.textAlign = "center";
               ctx.textBaseline = "middle";
@@ -341,7 +292,7 @@ useEffect(() => {
                 ctx.stroke();
               }
               ctx.fillStyle = "#213547";
-              ctx.fillText(label, n.x!, n.y!);
+              ctx.fillText(n.label ?? "", n.x!, n.y!);
             }}
             nodePointerAreaPaint={(node, color, ctx) => {
               const n = node as LegalNode | IncidentNode;
@@ -363,7 +314,6 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* RIGHT: Info */}
       <aside className="lg:col-span-1 bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl ring-1 ring-white/70 p-4 flex flex-col">
         {!selected ? (
           <div className="mt-4 text-sm text-neutral-500">항목을 선택하면 상세가 표시됩니다.</div>
@@ -371,16 +321,15 @@ useEffect(() => {
           <div className="mt-4 text-sm text-neutral-700 space-y-3">
             <div>
               <div className="text-neutral-500 text-xs mb-1">법조항</div>
-              <div className="text-base font-semibold mb-1">{(selected as LegalNode).label}</div>
-              {(selected as LegalNode).description && (
-               <p className="text-[13px] leading-relaxed text-neutral-600 bg-white/60 border border-neutral-200 rounded-md px-3 py-3">
-  {truncateText((selected as LegalNode).description ?? "", 500)}
-</p>
-
+              <div className="text-base font-semibold mb-1">{selected.label}</div>
+              {selected.description && (
+                <p className="text-[13px] leading-relaxed text-neutral-600 bg-white/60 border border-neutral-200 rounded-md px-2 py-2">
+                  {truncateText(selected.description, 550)}
+                </p>
               )}
             </div>
             <div className="text-xs text-neutral-500">
-              총 사건 수: <b className="text-neutral-700">{(selected as LegalNode).totalCount}</b>
+              총 사건 수: <b className="text-neutral-700">{selected.totalCount}</b>
             </div>
           </div>
         ) : (
@@ -388,21 +337,16 @@ useEffect(() => {
             <div className="text-neutral-500 text-xs">Incident</div>
             <div className="text-base font-semibold">{selIncident?.label}</div>
 
-            <div className="grid grid-cols-3 gap-2">
-              {(["agree", "repeal", "disagree"] as const).map((k) => (
-                <div
-                  key={k}
-                  className={`rounded-lg border px-2 py-1 text-center cursor-pointer ${activeTab === k ? "bg-emerald-50 border-emerald-200" : "bg-white/70 border-neutral-200"
-                    }`}
-                  onClick={() => setActiveTab(k)}
-                >
-                  <div className="text-[11px] text-neutral-500">{tabMeta[k].label}</div>
-                  <div className="text-[13px] font-semibold">
-                    {tabMeta[k].getCount(selIncident).toLocaleString()}건
-                  </div>
-                </div>
-              ))}
-            </div>
+            {/* ✅ 반원 차트 삽입 */}
+            <HalfPieChart
+              data={[
+                { key: "agree", label: "개정강화", value: tabMeta.agree.getCount(selIncident) },
+                { key: "repeal", label: "폐지완화", value: tabMeta.repeal.getCount(selIncident) },
+                { key: "disagree", label: "현상유지", value: tabMeta.disagree.getCount(selIncident) },
+              ]}
+              activeKey={activeTab}
+              onSelect={(k) => setActiveTab(k)}
+            />
 
             <div className="mt-1">
               <div className="text-xs text-neutral-500 mb-1">{tabMeta[activeTab].label} 의견</div>

@@ -4,10 +4,34 @@ import React, { useEffect, useMemo, useState } from "react";
 import Highcharts from "highcharts";
 import HighchartsReact from "highcharts-react-official";
 
+// const COLORS = {
+//   disagree: "#FFCDB2",
+//   repeal: "#ACE1AF",
+//   agree: "#C7D9DD",
+// };
+
 const COLORS = {
-  disagree: "#FFCDB2",
-  repeal: "#ACE1AF",
-  agree: "#C7D9DD",
+  disagree: {
+    linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+    stops: [
+      [0, "#FFD6C0"], // 상단 밝은색
+      [1, "#FFB4A2"], // 하단 진한색
+    ],
+  },
+  repeal: {
+    linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+    stops: [
+      [0, "#D3FAD6"],
+      [1, "#9CD8A1"],
+    ],
+  },
+  agree: {
+    linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+    stops: [
+      [0, "#E0F2F7"],
+      [1, "#A4C8D8"],
+    ],
+  },
 };
 
 type RawPoint = {
@@ -119,39 +143,109 @@ export default function LegislativeStanceAreaHC({
     };
   }, [agreeSeries, repealSeries, disagreeSeries]);
 
+  // const options: Highcharts.Options = {
+  //   chart: {
+  //     type: "area",
+  //     height: 260,
+  //     backgroundColor: "transparent",
+  //   },
+  //   title: { text: undefined },
+  //   credits: { enabled: false },
+  //   xAxis: {
+  //     categories,
+  //     labels: { style: { color: "#475569", fontSize: "11px" } },
+  //   },
+  //   yAxis: {
+  //     min: 0,
+  //     max: 100,
+  //     tickInterval: 20,
+  //     labels: {
+  //       formatter: function () {
+  //         return `${Math.round(this.value as number)}%`;
+  //       },
+  //       style: { color: "#475569", fontSize: "11px" },
+  //     },
+  //   },
+  //   legend: { align: "right", verticalAlign: "top" },
+  //   plotOptions: {
+  //     area: { stacking: "percent", marker: { enabled: false } },
+  //   },
+  //   series: [
+  //     { type: "area", name: "현상유지", color: COLORS.disagree, data: disagreeSeries },
+  //     { type: "area", name: "폐지완화", color: COLORS.repeal, data: repealSeries },
+  //     { type: "area", name: "개정강화", color: COLORS.agree, data: agreeSeries },
+  //   ],
+  // };
   const options: Highcharts.Options = {
-    chart: {
-      type: "area",
-      height: 260,
-      backgroundColor: "transparent",
+  chart: {
+    type: "area",
+    height: 260,
+    backgroundColor: "transparent",
+  },
+  title: { text: undefined },
+  credits: { enabled: false },
+  xAxis: {
+    categories,
+    labels: { style: { color: "#475569", fontSize: "11px" } },
+  },
+  yAxis: {
+    min: 0,
+    max: 100,
+    tickInterval: 20,
+    labels: {
+      formatter: function () {
+        return `${Math.round(this.value as number)}%`;
+      },
+      style: { color: "#475569", fontSize: "11px" },
     },
-    title: { text: undefined },
-    credits: { enabled: false },
-    xAxis: {
-      categories,
-      labels: { style: { color: "#475569", fontSize: "11px" } },
-    },
-    yAxis: {
-      min: 0,
-      max: 100,
-      tickInterval: 20,
-      labels: {
-        formatter: function () {
-          return `${Math.round(this.value as number)}%`;
+  },
+  legend: { align: "right", verticalAlign: "top" },
+  plotOptions: {
+    area: {
+      stacking: "percent",
+      marker: { enabled: false },
+      lineColor: "rgba(0,0,0,0.05)", // 얇은 라인으로 입체감
+      lineWidth: 1,
+      shadow: {
+        color: "rgba(0,0,0,0.25)",
+        width: 6,
+        offsetX: 0,
+        offsetY: 3,
+      },
+      states: {
+        hover: {
+          enabled: true,
+          brightness: 0.05,
         },
-        style: { color: "#475569", fontSize: "11px" },
       },
     },
-    legend: { align: "right", verticalAlign: "top" },
-    plotOptions: {
-      area: { stacking: "percent", marker: { enabled: false } },
+  },
+  // ✅ 3️⃣ series에 gradient 색상 적용
+  series: [
+    {
+      type: "area",
+      name: "현상유지",
+      color: COLORS.disagree,
+      data: disagreeSeries,
+      fillOpacity: 0.8,
     },
-    series: [
-      { type: "area", name: "현상유지", color: COLORS.disagree, data: disagreeSeries },
-      { type: "area", name: "폐지완화", color: COLORS.repeal, data: repealSeries },
-      { type: "area", name: "개정강화", color: COLORS.agree, data: agreeSeries },
-    ],
-  };
+    {
+      type: "area",
+      name: "폐지완화",
+      color: COLORS.repeal,
+      data: repealSeries,
+      fillOpacity: 0.8,
+    },
+    {
+      type: "area",
+      name: "개정강화",
+      color: COLORS.agree,
+      data: agreeSeries,
+      fillOpacity: 0.8,
+    },
+  ],
+};
+
 
   return (
     <div className="w-full h-full flex flex-col">

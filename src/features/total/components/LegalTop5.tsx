@@ -34,7 +34,7 @@ const getDefaultRange = () => {
 export default function LegalTop5({
   startDate,
   endDate,
- 
+
 }: LegalTop5Props) {
   const [items, setItems] = useState<LegalTop5Item[]>([]);
   const [loading, setLoading] = useState(false);
@@ -60,7 +60,7 @@ export default function LegalTop5({
         const raw = await res.json();
         const list: LegalTop5Item[] = Object.values(raw);
         setItems(list);
-        console.log("랭킹패치",raw)
+        console.log("랭킹패치", raw)
       } catch (err) {
         console.error("❌ Failed to fetch LegalTop5:", err);
       } finally {
@@ -150,7 +150,7 @@ export default function LegalTop5({
                   : "bg-white/50 opacity-60 grayscale",
               ].join(" ")}
               style={{ transitionDuration: "400ms" }}
-              
+
             >
               <div className="flex items-center gap-3">
                 <div
@@ -192,7 +192,7 @@ export default function LegalTop5({
                     className="absolute left-0 top-0 h-full"
                     style={{
                       width: `${p1}%`,
-                      background: "linear-gradient(to right, #e6542fe0, #feb47b)",
+                      background: "linear-gradient(to right, #fa6666cc, #FF8989)",
                       boxShadow: "inset 0 0 6px rgba(255, 119, 77, 0.5)",
                       transition: "width 800ms cubic-bezier(.22,.61,.36,1)",
                     }}
@@ -220,10 +220,31 @@ export default function LegalTop5({
                 </div>
 
                 <div className="mt-1 flex items-center justify-between text-[11px] text-neutral-500">
-                  <span className="tabular-nums">
-                    강화 {p1}% · 완화 {p2}% · 유지 {p3}%
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="flex items-center gap-1">
+                      <span
+                        className="inline-block w-3 h-3 rounded-sm"
+                        style={{ background: "linear-gradient(to right, #FF6666, #FF8989)" }}
+                      ></span>
+                      강화 {p1}%
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span
+                        className="inline-block w-3 h-3 rounded-sm"
+                        style={{ background: "linear-gradient(to right, #a1c4fd, #c2e9fb)" }}
+                      ></span>
+                      완화 {p2}%
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span
+                        className="inline-block w-3 h-3 rounded-sm"
+                        style={{ background: "linear-gradient(to right, #d3d3d3, #f5f5f5)" }}
+                      ></span>
+                      유지 {p3}%
+                    </span>
+                  </div>
                 </div>
+
               </div>
             </li>
           );

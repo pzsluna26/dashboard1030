@@ -44,7 +44,7 @@ const nf = new Intl.NumberFormat("ko-KR");
 const fmtKstDate = (d: Date) =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(d); // 'YYYY-MM-DD'
 
-// ✅ 고정된 마지막 날짜(2025-08-13) 기준 최근 14일 계산
+// 고정된 마지막 날짜(2025-08-13) 기준 최근 14일 계산
 const makeDefaultRange = (days = 14) => {
   const end = new Date("2025-08-13T23:59:59+09:00"); // KST 기준 고정
   const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000);
@@ -368,13 +368,22 @@ export default function KpiSummary({
                     margin={{ top: 6, right: 8, left: 0, bottom: 0 }}
                   >
                     <defs>
-                      <linearGradient id={`gNews_${c.key}`} x1="0" y1="0" x2="0" y2="1">
+                      {/* <linearGradient id={`gNews_${c.key}`} x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#64748b" stopOpacity={0.65} />
                         <stop offset="100%" stopColor="#cbd5e1" stopOpacity={0.05} />
                       </linearGradient>
                       <linearGradient id={`gSoc_${c.key}`} x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.65} />
                         <stop offset="100%" stopColor="#bae6fd" stopOpacity={0.1} />
+                      </linearGradient> */}
+
+                      <linearGradient id={`gNews_${c.key}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#64748b" stopOpacity={0.65} />
+                        <stop offset="100%" stopColor="#cbd5e1" stopOpacity={0.05} />
+                      </linearGradient>
+                      <linearGradient id={`gSoc_${c.key}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#FF6666" stopOpacity={0.65} />
+                        <stop offset="100%" stopColor="#FFEADD" stopOpacity={0.1} />
                       </linearGradient>
                     </defs>
 
@@ -400,7 +409,7 @@ export default function KpiSummary({
                     <Area
                       type="monotone"
                       dataKey="뉴스 누적"
-                      stroke="#64748b"
+                      stroke="#FFEADD"
                       fillOpacity={1}
                       fill={`url(#gNews_${c.key})`}
                       strokeWidth={2}
@@ -410,12 +419,12 @@ export default function KpiSummary({
                     <Area
                       type="monotone"
                       dataKey="여론 누적"
-                      stroke="#60a5fa"
+                      stroke="#FFEADD"
                       fillOpacity={1}
                       fill={`url(#gSoc_${c.key})`}
                       strokeWidth={2}
                       dot={false}
-                      activeDot={{ r: 3, fill: "#2563eb" }}
+                      activeDot={{ r: 3, fill: "#FF6666" }}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
