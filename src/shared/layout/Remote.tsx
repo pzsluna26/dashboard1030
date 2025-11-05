@@ -8,28 +8,28 @@ import "react-day-picker/dist/style.css";
 import { addDays, differenceInCalendarDays, format, isAfter } from "date-fns";
 
 type Props = {
-  startDate?: string; 
-  endDate?: string;   
+  startDate?: string;
+  endDate?: string;
   onDateRangeChange?: (start: string, end: string) => void;
-  captureRef?: RefObject<HTMLElement | null>; 
+  captureRef?: RefObject<HTMLElement | null>;
   className?: string;
   // fixed?:boolean;
 };
 
 const BTN_TEXT = "#1f2937";
-const BTN_GRAD        = "linear-gradient(180deg, #c6d1d6 0%, #b4c4cb 45%, #9fb3be 100%)";
-const BTN_GRAD_HOVER  = "linear-gradient(180deg, #94b7c6 0%, #7fa2b2 45%, #6f8f9e 100%)";
+const BTN_GRAD = "linear-gradient(180deg, #c6d1d6 0%, #b4c4cb 45%, #9fb3be 100%)";
+const BTN_GRAD_HOVER = "linear-gradient(180deg, #94b7c6 0%, #7fa2b2 45%, #6f8f9e 100%)";
 const BTN_GRAD_ACTIVE = "linear-gradient(180deg, #8aaebb 0%, #769aa9 45%, #637f8d 100%)";
-const BTN_BORDER       = "1px solid rgba(255,255,255,0.55)";
+const BTN_BORDER = "1px solid rgba(255,255,255,0.55)";
 const BTN_BORDER_HOVER = "1px solid rgba(255,255,255,0.65)";
-const BTN_SHADOW        = "0 10px 24px rgba(60,85,100,0.28), 0 2px 6px rgba(60,85,100,0.20), inset 0 1px 0 rgba(255,255,255,0.55)";
-const BTN_SHADOW_HOVER  = "0 14px 28px rgba(60,85,100,0.32), 0 4px 10px rgba(60,85,100,0.24), inset 0 1px 0 rgba(255,255,255,0.60)";
+const BTN_SHADOW = "0 10px 24px rgba(60,85,100,0.28), 0 2px 6px rgba(60,85,100,0.20), inset 0 1px 0 rgba(255,255,255,0.55)";
+const BTN_SHADOW_HOVER = "0 14px 28px rgba(60,85,100,0.32), 0 4px 10px rgba(60,85,100,0.24), inset 0 1px 0 rgba(255,255,255,0.60)";
 const BTN_SHADOW_ACTIVE = "0 6px 14px rgba(60,85,100,0.32), 0 2px 6px rgba(60,85,100,0.28), inset 0 2px 4px rgba(0,0,0,0.18)";
 
 const MAX_RANGE_DAYS = 30;
 
-const MIN_DATE = new Date(2025, 0, 1);  
-const MAX_DATE = new Date(2025, 7, 13); 
+const MIN_DATE = new Date(2025, 0, 1);
+const MAX_DATE = new Date(2025, 7, 13);
 
 // ✅ 라우트 버튼
 const routes = [
@@ -130,7 +130,7 @@ export default function Remote({
       const canvas = await htmlToImage.toCanvas(target, {
         cacheBust: true,
         pixelRatio: safeRatio,
-        backgroundColor: "#ffffff", 
+        backgroundColor: "#ffffff",
         width: nodeW,
         height: nodeH,
         style: { transform: "none", transformOrigin: "top left" },
@@ -152,7 +152,7 @@ export default function Remote({
         scrollX: 0,
         scrollY: -window.scrollY,
         onclone: (doc) => {
-        
+
           const all = Array.from(doc.querySelectorAll<HTMLElement>("*"));
           for (const el of all) {
             if ((el as any).dataset?.captureSkip) {
@@ -170,10 +170,10 @@ export default function Remote({
             if (/lab\(/i.test(color) || /color\(/i.test(color)) {
               el.style.color = color;
             }
-         
+
             const pos = cs.getPropertyValue("position");
             if (pos === "fixed") {
-              el.style.position = "absolute"; 
+              el.style.position = "absolute";
             }
           }
         },
@@ -187,7 +187,7 @@ export default function Remote({
       const canvas = await captureNodeToCanvas(target as HTMLElement);
       const a = document.createElement("a");
       a.href = canvas.toDataURL("image/png");
-      a.download = `dashboard_${new Date().toISOString().slice(0,19).replace(/[:T]/g,"-")}.png`;
+      a.download = `dashboard_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.png`;
       a.click();
     } catch (err) {
       console.error("PNG 생성 실패:", err);
@@ -201,7 +201,6 @@ export default function Remote({
       const canvas = await captureNodeToCanvas(target as HTMLElement);
       const imgData = canvas.toDataURL("image/jpeg", 0.95);
 
-      
       const jspdfMod: any = await import("jspdf");
       const JsPDF = jspdfMod.jsPDF || jspdfMod.default;
       if (!JsPDF) throw new Error("jsPDF export not found");
@@ -236,21 +235,23 @@ export default function Remote({
         }
       }
 
-   
       let saved = false;
       try {
-        pdf.save(`dashboard_${new Date().toISOString().slice(0,19).replace(/[:T]/g, "-")}.pdf`);
+        pdf.save(`dashboard_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.pdf`);
         saved = true;
-      } catch (_e) 
-      if (!saved) {
-        const blobUrl = pdf.output("bloburl");
-        window.open(blobUrl, "_blank");
+      } catch (_e) {
+        if (!saved) {
+          const blobUrl = pdf.output("bloburl");
+          window.open(blobUrl, "_blank");
+        }
       }
+
     } catch (err) {
       console.error("PDF 생성 실패:", err);
       alert("PDF 생성 중 오류가 발생했습니다. 콘솔을 확인해주세요.");
     }
   }
+
 
   return (
     <div
@@ -267,7 +268,7 @@ export default function Remote({
       ].join(" ")}
       aria-label="빠른 탐색 리모컨"
     >
-   
+
       {routes.map((r) => {
         const Active = pathname === r.href;
         const Icon = r.icon;
@@ -326,10 +327,10 @@ export default function Remote({
         );
       })}
 
-   
+
       <div className="w-8 h-px bg-[rgba(255,255,255,0.70)] my-1" />
 
-    
+
       <button
         type="button"
         className="w-16 h-16 rounded-2xl grid place-items-center transition-transform duration-150 focus:outline-none"
@@ -400,7 +401,7 @@ export default function Remote({
         </div>
       </button>
 
-    
+
       <button
         type="button"
         className="w-16 h-16 rounded-2xl grid place-items-center transition-transform duration-150 focus:outline-none"
@@ -448,7 +449,7 @@ export default function Remote({
                      bg-[rgba(255,255,255,0.90)] backdrop-blur-md shadow-[0_12px_40px_rgba(20,30,60,0.2)]
                      border border-[rgba(255,255,255,0.60)] overflow-hidden"
         >
-     
+
           <button
             type="button"
             aria-label="닫기"
@@ -470,14 +471,14 @@ export default function Remote({
               numberOfMonths={1}
               disabled={disabledMatchers}
 
-              
+
               captionLayout="dropdown"
               fromYear={2025}
               toYear={2025}
-              fromMonth={new Date(2025, 0)} 
-              toMonth={new Date(2025, 7)}   
+              fromMonth={new Date(2025, 0)}
+              toMonth={new Date(2025, 7)}
 
-              
+
               modifiersClassNames={{
                 selected: "bg-[#7fa2b2] text-white",
                 range_start: "bg-[#7fa2b2] text-white",
@@ -491,7 +492,7 @@ export default function Remote({
                   width: "100%",
                   maxWidth: "100%",
                   boxSizing: "border-box",
-                  ["--rdp-cell-size" as any]: "34px", 
+                  ["--rdp-cell-size" as any]: "34px",
                 },
                 months: { width: "100%", margin: 0 },
                 month: { width: "100%" },
