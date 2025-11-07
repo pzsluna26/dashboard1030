@@ -1,11 +1,12 @@
-﻿"use client";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import dynamic from "next/dynamic";
-import type { ForceGraphMethods, LinkObject, NodeObject } from "react-force-graph-2d";
-import * as d3 from "d3";
-import HalfPieChart from "./HalfPieChart.tsx";
+﻿'use client';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
+import type { ForceGraphMethods, LinkObject, NodeObject } from 'react-force-graph-2d';
+import * as d3 from 'd3';
+import HalfPieChart from '@/shared-ui/HalfPieChart.tsx';
 
-const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false });
+const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), { ssr: false });
+
 
 export type PeriodKey = "daily_timeline" | "weekly_timeline" | "monthly_timeline";
 type NodeType = "legal" | "incident";
