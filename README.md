@@ -10,6 +10,37 @@
 
 </br>
 
+## 📽️ 시연영상
+
+https://youtu.be/rvLSk8aTsyQ
+
+</br>
+
+## 📸 프로젝트 미리보기
+![프로젝트 미리보기](./public/preview/dashboard.png)
+- KPI Summary
+    -  사용자 지정 기간 단위로 뉴스/여론 지표 누적 추이 시각화
+    -  Recharts AreaChart 기반의 시계열 그래프 구성
+-LegalTop5
+    -  여론분포(개정강화/폐지완화/현상유지) 중 가장 뜨거운 관심을 받은 상위 5개 법조항 기준으로 시각화
+    -  자동 슬라이드 애니메이션으로 랭킹 순위 강조
+- NetworkGraph
+    -  법조항-사건 관계를 2D 네트워크 그래프로 표시
+    -  React-force-graph-2d 의 Force Simulation 으로 노드 간 관계를 동적으로 표현
+- SocialBarChart
+    -  법안별 여론 입장(개정강화/폐지완화/현상유지)을 누적 막대그래프로 표시
+    -  비율/건수 모드를 토글하여 시각화 방식 전환 가능
+- LegislativeStanceArea
+    -  기간별 여론성향의 비율 변화를 시계열 면적 그래프로 시각화
+    -  Highcharts의 Percent Stacked Area Chart를 활용하여 각 입장의 상대적 비중 변화를 직관적으로 표현
+    -  useMEmo로 증감률 및 요약 인사이트를 계산하여 렌더링 성능을 최적화
+    -  차트 하단에는 항목별 증감률 및 주요 인사이트를 텍스트로 요약 표시
+- Heatmap
+    -   법안별 입장 분포를 색상강도로 시각화
+    -  HighCharts  Heatmap 모듈 기반
+
+</br>
+
 ## 🕰️ 프로젝트 기간 및 인원
  
 - 일정: 2025.08.29 - 2025.11.10 (총 12주)
@@ -55,69 +86,21 @@
 
 </br>
 
+
 ## 💡 기술적 도전 / 문제 해결 사례
-- '수작업의 한계' : 비정형·파편화된 여론 데이터 분석에 막대한 시간과 비용 소모
-    - 해결 : 
-- '단순 분석의 한계' : 단순 찬반 분류로는 구체적인 정책 방향성 파악 불가
-    - 해결
-- '객관성의 부재' : 이슈의 중요도와 시급성을 객관적으로 평가하기 어려움
-    - 해결
+- 렌더링 지연 문제 </br>
+대시보드 초기 렌더링 시 전체 JSON 데이터를 한 번에 불러오면서 지연이 발생했습니다.
+이를 해결하기 위해 컴포넌트 단위별로 필요한 JSON만 분리하여 API 연동하도록 구조를 개선했습니다.
+그 결과, 렌더링 속도가 개선되고 불필요한 데이터 요청을 줄일 수 있었습니다.
+
 
 </br>
 
-## 🔧 개발 환경, 주요 기술 스택
+## 🔧 개발 환경
 - 개발환경
     - 프레임워크: Next.js (React 18, TypeScript)
     - 렌더링: 클라이언트 사이드 렌더링(CSR, Client-Side Rendering)
     - 효과: 사용자 상호작용 시 빠른 화면 전환 및 부드러운 인터페이스 제공
-- 주요 기술 스택
-    - 데이터 시각화: Recharts, Highcharts, react-force-graph-2d
-    - UI/스타일링: TailwindCSS, Lucide Icons
-    - 상태 및 데이터 관리: Fetch API, React Hooks (useEffect, useMemo)
-    - 렌더링 최적화: Dynamic Import, Suspense (로딩 중 대체 UI 표시)
-
-</br>
-
-
-## 🔗 코드 및 리소스 링크
-- FrontEnd
-https://github.com/pzsluna26/dashboard.git
-- Backend
-https://github.com/Young6575/Dashboard-Backed.git
-https://github.com/Young6575/Dashboard-backed_security.git
-- DataAnalysis
-https://github.com/heeaayoon/data
-    
-</br>
-
-## 📽️ 시연영상
-
-https://youtu.be/rvLSk8aTsyQ
-
-</br>
-
-## 📸 대시보드 미리보기
-![프로젝트 미리보기](./public/preview/dashboard.png)
-- KPI Summary
-    -  사용자 지정 기간 단위로 뉴스/여론 지표 누적 추이 시각화
-    -  Recharts AreaChart 기반의 시계열 그래프 구성
--LegalTop5
-    -  여론분포(개정강화/폐지완화/현상유지) 중 가장 뜨거운 관심을 받은 상위 5개 법조항 기준으로 시각화
-    -  자동 슬라이드 애니메이션으로 랭킹 순위 강조
-- NetworkGraph
-    -  법조항-사건 관계를 2D 네트워크 그래프로 표시
-    -  React-force-graph-2d 의 Force Simulation 으로 노드 간 관계를 동적으로 표현
-- SocialBarChart
-    -  법안별 여론 입장(개정강화/폐지완화/현상유지)을 누적 막대그래프로 표시
-    -  비율/건수 모드를 토글하여 시각화 방식 전환 가능
-- LegislativeStanceArea
-    -  기간별 여론성향의 비율 변화를 시계열 면적 그래프로 시각화
-    -  Highcharts의 Percent Stacked Area Chart를 활용하여 각 입장의 상대적 비중 변화를 직관적으로 표현
-    -  useMEmo로 증감률 및 요약 인사이트를 계산하여 렌더링 성능을 최적화
-    -  차트 하단에는 항목별 증감률 및 주요 인사이트를 텍스트로 요약 표시
-- Heatmap
-    -   법안별 입장 분포를 색상강도로 시각화
-    -  HighCharts  Heatmap 모듈 기반
 
 </br>
 
@@ -169,3 +152,13 @@ https://youtu.be/rvLSk8aTsyQ
 ```
 </br>
 
+## 🔗 코드 및 리소스 링크
+- FrontEnd
+https://github.com/pzsluna26/dashboard.git
+- Backend
+https://github.com/Young6575/Dashboard-Backed.git
+https://github.com/Young6575/Dashboard-backed_security.git
+- DataAnalysis
+https://github.com/heeaayoon/data
+    
+</br>
